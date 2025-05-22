@@ -16,8 +16,8 @@ async function createGitHubIssue() {
   try {
     // Use Octokit to create the issue
     const response = await octokit.issues.create({
-      owner: "your-github-username", // Replace with your GitHub username
-      repo: "your-repo-name", // Replace with your repository name
+      owner: "agostini01",
+      repo: "github-issue-manager",
       title: issueManager.getContext().title,
       body: issueManager.getContext().body,
       labels: issueManager.getContext().labels,
