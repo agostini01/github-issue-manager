@@ -10,8 +10,8 @@ const openai = new OpenAI({
 async function listLabels() {
   try {
     const response = await octokit.issues.listLabelsForRepo({
-      owner: "agostini01", // Replace with your GitHub username
-      repo: "github-issue-manager", // Replace with your repository name
+      owner: "agostini01",
+      repo: "github-issue-manager",
     });
     return response.data;
   } catch (error) {
@@ -43,23 +43,28 @@ async function labelIssuesWithLLM() {
       if (issue.body) {
         console.log(`Analyzing issue #${issue.number}: ${issue.title}`);
 
+        const outputPreample = `[\n  {\n    \"reasoning\": \"`;
         // Use OpenAI to suggest labels based on the issue description
         const completion = await openai.completions.create({
           model: process.env.OPENAI_MODEL || "text-davinci-003", // Use the model from the .env file or fallback
-          prompt: `Suggest appropriate labels for the following GitHub issue description:\n\n"${issue.body}"\n\nAvailable labels:\n${labelsString}\n\nLabels:`,
-          max_tokens: 50,
+          prompt: `Suggest appropriate labels for the following GitHub issue description:\n"${issue.body}"\n\nAvailable labels:\n${labelsString}\n\n Output the result in the following JSON format:Output:\n[\n  {\n    \"reasoning\": \"<reasoning for the suggested labels>\",\n    \"suggestedLabels\": [\"label1\", \"label2\", \"label3\"]\n  }\n]\n\nOutput:`+outputPreample,
+          max_tokens: 150,
         });
 
-        const suggestedLabels = completion.choices[0].text?.trim().split(",").map(label => label.trim());
+        const result = JSON.parse(outputPreample + completion.choices[0].text || "[]");
+        const reasoning = result[0]?.reasoning || "No reasoning provided";
+        const suggestedLabels = result[0]?.suggestedLabels || [];
+
+        console.log(`Reasoning for issue #${issue.number}:`, reasoning);
         console.log(`Suggested labels for issue #${issue.number}:`, suggestedLabels);
 
         // Update the issue with the suggested labels
-        //   await octokit.issues.update({
-        //     owner: "your-github-username", // Replace with your GitHub username
-        //     repo: "your-repo-name", // Replace with your repository name
-        //     issue_number: issue.number,
-        //     labels: suggestedLabels,
-        //   });
+        await octokit.issues.update({
+          owner: "agostini01",
+          repo: "github-issue-manager",
+          issue_number: issue.number,
+          labels: suggestedLabels,
+        });
 
         console.log(`Labels updated for issue #${issue.number}`);
       } else {
